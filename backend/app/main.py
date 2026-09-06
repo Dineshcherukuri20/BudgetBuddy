@@ -26,7 +26,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://budget-buddy-ogbg2eec9-dineshcherukuri2004-3067.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,3 +58,4 @@ def root():
             "is running successfully."
         )
     }
+
