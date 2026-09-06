@@ -7,15 +7,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
-pdfmetrics.registerFont(
-    TTFont("Arial", "C:/Windows/Fonts/arial.ttf")
-)
-
-pdfmetrics.registerFont(
-    TTFont("Arial-Bold", "C:/Windows/Fonts/arialbd.ttf")
-)
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
@@ -383,7 +375,7 @@ def generate_report_pdf(db: Session):
     title_style = ParagraphStyle(
         "Title",
         parent=styles["Title"],
-        fontName="Arial-Bold",
+        fontName="Helvetica-Bold",
         fontSize=22,
         leading=26,
         textColor=NAVY,
@@ -393,7 +385,7 @@ def generate_report_pdf(db: Session):
     subtitle_style = ParagraphStyle(
         "Subtitle",
         parent=styles["Normal"],
-        fontName="Arial",
+        fontName="Helvetica",
         fontSize=9,
         leading=12,
         textColor=SLATE,
@@ -403,7 +395,7 @@ def generate_report_pdf(db: Session):
     section_style = ParagraphStyle(
         "Section",
         parent=styles["Heading2"],
-        fontName="Arial-Bold",
+        fontName="Helvetica-Bold",
         fontSize=13,
         leading=16,
         textColor=NAVY,
@@ -414,7 +406,7 @@ def generate_report_pdf(db: Session):
     small_style = ParagraphStyle(
         "Small",
         parent=styles["Normal"],
-        fontName="Arial",
+        fontName="Helvetica",
         fontSize=8,
         leading=10,
         textColor=SLATE,
@@ -537,13 +529,13 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTNAME",
                     (0, 1),
                     (-1, -1),
-                    "Arial",
+                    "Helvetica",
                 ),
                 (
                     "FONTSIZE",
@@ -673,13 +665,13 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTNAME",
                     (0, 1),
                     (-1, -1),
-                    "Arial",
+                    "Helvetica",
                 ),
                 (
                     "FONTSIZE",
@@ -798,7 +790,7 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTSIZE",
@@ -887,7 +879,7 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTSIZE",
@@ -994,7 +986,7 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTSIZE",
@@ -1093,7 +1085,7 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTSIZE",
@@ -1194,7 +1186,7 @@ def generate_report_pdf(db: Session):
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Arial-Bold",
+                    "Helvetica-Bold",
                 ),
                 (
                     "FONTSIZE",
@@ -1276,7 +1268,7 @@ def generate_report_pdf(db: Session):
         )
 
         canvas.setFont(
-            "Arial",
+            "Helvetica",
             7,
         )
 
