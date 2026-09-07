@@ -7,3 +7,5 @@ from app.models.budget import Budget
 from app.models.savings_goal import SavingsGoal
 from app.models.notification import Notification
 from app.models.reminder import Reminder
+
+from app.models.pending_signup import PendingSignup

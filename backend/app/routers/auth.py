@@ -17,6 +17,8 @@ from app.core.security import (
 )
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.models.profile import Profile
+from app.models.pending_signup import PendingSignup
 from app.services.email_service import (
     generate_verification_code,
     send_verification_email,
@@ -130,10 +132,7 @@ def create_and_store_verification_code(
 # SIGNUP
 # ============================================================
 
-@router.post(
-    "/signup",
-    response_model=UserOut,
-)
+@router.post("/signup")
 def signup(
     user_in: UserCreate,
     db: Session = Depends(get_db),
@@ -149,38 +148,53 @@ def signup(
             detail="Email already registered",
         )
 
-    # Create account
-    user = create_user(
-        db,
-        user_in.email,
-        user_in.password,
-        user_in.full_name,
+    pending_signup = (
+        db.query(PendingSignup)
+        .filter(PendingSignup.email == user_in.email)
+        .first()
     )
 
-    # Generate verification OTP
-    verification_code = create_and_store_verification_code(
-        db,
-        user,
+    hashed_password = hash_password(user_in.password)
+
+    if pending_signup:
+        pending_signup.hashed_password = hashed_password
+        pending_signup.full_name = user_in.full_name
+    else:
+        pending_signup = PendingSignup(
+            email=user_in.email,
+            hashed_password=hashed_password,
+            full_name=user_in.full_name,
+        )
+        db.add(pending_signup)
+
+    verification_code = generate_verification_code()
+
+    pending_signup.verification_code = hash_verification_code(
+        verification_code
+    )
+    pending_signup.verification_code_expires_at = (
+        datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=10)
     )
 
-    # Send verification email
+    db.commit()
+
     try:
         send_verification_email(
-            user.email,
+            pending_signup.email,
             verification_code,
         )
-
     except Exception as exc:
+        db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Account created, but verification "
-                "email could not be sent. "
-                "Please use resend verification."
-            ),
+            detail="Unable to send verification email. Please try again.",
         ) from exc
 
-    return user
+    return {
+        "message": "Verification code sent successfully",
+        "email": pending_signup.email,
+    }
 
 
 # ============================================================
@@ -192,23 +206,29 @@ def verify_email(
     request: VerifyEmailRequest,
     db: Session = Depends(get_db),
 ):
-    user = get_user_by_email(
-        db,
-        request.email,
+    pending_signup = (
+        db.query(PendingSignup)
+        .filter(PendingSignup.email == request.email)
+        .first()
     )
 
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
+    if not pending_signup:
+        existing_user = get_user_by_email(
+            db,
+            request.email,
         )
 
-    if user.is_verified:
-        return {
-            "message": "Email is already verified",
-        }
+        if existing_user and existing_user.is_verified:
+            return {
+                "message": "Email is already verified",
+            }
 
-    if not user.verification_code:
+        raise HTTPException(
+            status_code=404,
+            detail="No pending signup found. Please create your account again.",
+        )
+
+    if not pending_signup.verification_code:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -217,7 +237,7 @@ def verify_email(
             ),
         )
 
-    if not user.verification_code_expires_at:
+    if not pending_signup.verification_code_expires_at:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -231,7 +251,7 @@ def verify_email(
         .replace(tzinfo=None)
     )
 
-    if current_time > user.verification_code_expires_at:
+    if current_time > pending_signup.verification_code_expires_at:
         raise HTTPException(
             status_code=400,
             detail=(
@@ -244,21 +264,32 @@ def verify_email(
         request.code.strip()
     )
 
-    if submitted_code_hash != user.verification_code:
+    if submitted_code_hash != pending_signup.verification_code:
         raise HTTPException(
             status_code=400,
             detail="Invalid verification code",
         )
 
-    # Verification successful
-    user.is_verified = True
+    # OTP verified successfully.
+    # Only now create the real account.
+    user = User(
+        email=pending_signup.email,
+        hashed_password=pending_signup.hashed_password,
+        role="normal",
+        is_verified=True,
+    )
 
-    # OTP cannot be reused
-    user.verification_code = None
-    user.verification_code_expires_at = None
+    db.add(user)
+    db.flush()
 
+    profile = Profile(
+        user_id=user.id,
+        full_name=pending_signup.full_name,
+    )
+
+    db.add(profile)
+    db.delete(pending_signup)
     db.commit()
-    db.refresh(user)
 
     return {
         "message": "Email verified successfully",
@@ -274,34 +305,47 @@ def resend_verification(
     request: ResendVerificationRequest,
     db: Session = Depends(get_db),
 ):
-    user = get_user_by_email(
-        db,
-        request.email,
+    pending_signup = (
+        db.query(PendingSignup)
+        .filter(PendingSignup.email == request.email)
+        .first()
     )
 
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
+    if not pending_signup:
+        existing_user = get_user_by_email(
+            db,
+            request.email,
         )
 
-    if user.is_verified:
-        return {
-            "message": "Email is already verified",
-        }
+        if existing_user and existing_user.is_verified:
+            return {
+                "message": "Email is already verified",
+            }
 
-    verification_code = create_and_store_verification_code(
-        db,
-        user,
+        raise HTTPException(
+            status_code=404,
+            detail="No pending signup found. Please create your account again.",
+        )
+
+    verification_code = generate_verification_code()
+
+    pending_signup.verification_code = hash_verification_code(
+        verification_code
     )
+    pending_signup.verification_code_expires_at = (
+        datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=10)
+    )
+
+    db.commit()
 
     try:
         send_verification_email(
-            user.email,
+            pending_signup.email,
             verification_code,
         )
-
     except Exception as exc:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Unable to send verification email",
@@ -625,9 +669,3 @@ def read_current_user(
         "premium_request_status": current_user.premium_request_status,
         "is_verified": current_user.is_verified,
     }
-
-
-
-
-
-
