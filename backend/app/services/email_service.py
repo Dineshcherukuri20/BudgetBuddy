@@ -1,4 +1,4 @@
-import secrets
+﻿import secrets
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -31,7 +31,7 @@ def send_verification_email(
     # CREATE EMAIL
     # ------------------------------------------
 
-    sender_email = "Budget Buddy <onboarding@resend.dev>"
+    sender_email = settings.EMAIL_FROM or settings.SMTP_USER
 
     message = MIMEMultipart("alternative")
 
@@ -354,7 +354,7 @@ text-align:center;
 "
 >
 
-Â© 2026 Budget Buddy Â· Smarter money starts here.
+Ã‚Â© 2026 Budget Buddy Ã‚Â· Smarter money starts here.
 
 </td>
 
@@ -394,31 +394,59 @@ text-align:center;
     )
 
     # ==========================================
-    # SEND THROUGH RESEND
+    # SEND THROUGH BREVO
     # ==========================================
 
     try:
 
-        if not settings.RESEND_API_KEY:
+        if not settings.BREVO_API_KEY:
             raise RuntimeError(
-                "RESEND_API_KEY is not configured"
+                "BREVO_API_KEY is not configured"
             )
 
-        import resend
+        import json
+        import urllib.request
+        import urllib.error
 
-        resend.api_key = settings.RESEND_API_KEY
+        sender_address = sender_email
+        if "<" in sender_email and ">" in sender_email:
+            sender_address = sender_email.split("<", 1)[1].split(">", 1)[0].strip()
+            sender_name = sender_email.split("<", 1)[0].strip()
+        else:
+            sender_name = "Budget Buddy"
 
-        print("Sending verification email through Resend...")
-
-        resend.Emails.send({
-            "from": sender_email,
-            "to": [recipient_email],
+        payload = {
+            "sender": {
+                "name": sender_name,
+                "email": sender_address
+            },
+            "to": [
+                {
+                    "email": recipient_email
+                }
+            ],
             "subject": message["Subject"],
-            "text": text_content,
-            "html": html_content,
-        })
+            "textContent": text_content,
+            "htmlContent": html_content
+        }
 
-        print("Verification email sent successfully through Resend.")
+        request = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "api-key": settings.BREVO_API_KEY,
+                "accept": "application/json",
+                "content-type": "application/json"
+            },
+            method="POST"
+        )
+
+        print("Sending verification email through Brevo...")
+
+        with urllib.request.urlopen(request, timeout=20) as response:
+            response.read()
+
+        print("Verification email sent successfully through Brevo.")
 
     except Exception as exc:
 
@@ -431,3 +459,4 @@ text-align:center;
         raise RuntimeError(
             f"Email error: {type(exc).__name__}: {exc}"
         ) from exc
+

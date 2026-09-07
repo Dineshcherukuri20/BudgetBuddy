@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +16,8 @@ class Settings:
     EMAIL_FROM = os.getenv("EMAIL_FROM")
 
     # Resend
-    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+    BREVO_API_KEY = os.getenv("BREVO_API_KEY")
 
 
 settings = Settings()
+
