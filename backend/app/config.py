@@ -15,5 +15,8 @@ class Settings:
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
     EMAIL_FROM = os.getenv("EMAIL_FROM")
 
+    # Resend
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+
 
 settings = Settings()

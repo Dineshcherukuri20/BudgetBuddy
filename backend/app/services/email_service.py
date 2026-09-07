@@ -1,5 +1,4 @@
 import secrets
-import smtplib
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -29,38 +28,10 @@ def send_verification_email(
 ) -> None:
 
     # ------------------------------------------
-    # Check SMTP configuration
-    # ------------------------------------------
-
-    if not settings.SMTP_USER:
-        raise RuntimeError(
-            "SMTP_USER is not configured in .env"
-        )
-
-    if not settings.SMTP_PASSWORD:
-        raise RuntimeError(
-            "SMTP_PASSWORD is not configured in .env"
-        )
-
-    sender_email = (
-        settings.EMAIL_FROM
-        or settings.SMTP_USER
-    )
-
-    # Safe debug information.
-    # Password is NEVER printed.
-    print("====================================")
-    print("BUDGET BUDDY EMAIL DEBUG")
-    print("SMTP Host:", settings.SMTP_HOST)
-    print("SMTP Port:", settings.SMTP_PORT)
-    print("SMTP User configured:", bool(settings.SMTP_USER))
-    print("SMTP Password configured:", bool(settings.SMTP_PASSWORD))
-    print("Sender configured:", bool(sender_email))
-    print("====================================")
-
-    # ------------------------------------------
     # CREATE EMAIL
     # ------------------------------------------
+
+    sender_email = "Budget Buddy <onboarding@resend.dev>"
 
     message = MIMEMultipart("alternative")
 
@@ -383,7 +354,7 @@ text-align:center;
 "
 >
 
-© 2026 Budget Buddy · Smarter money starts here.
+Â© 2026 Budget Buddy Â· Smarter money starts here.
 
 </td>
 
@@ -423,90 +394,31 @@ text-align:center;
     )
 
     # ==========================================
-    # SEND THROUGH GMAIL SMTP
+    # SEND THROUGH RESEND
     # ==========================================
 
     try:
 
-        print("Connecting to Gmail SMTP...")
-
-        with smtplib.SMTP(
-            settings.SMTP_HOST,
-            settings.SMTP_PORT,
-            timeout=20
-        ) as server:
-
-            # Identify ourselves to SMTP server
-            server.ehlo()
-
-            print("Starting TLS...")
-
-            # Secure connection
-            server.starttls()
-
-            server.ehlo()
-
-            print("TLS started successfully.")
-
-            print("Logging into Gmail...")
-
-            # Gmail authentication
-            server.login(
-                settings.SMTP_USER,
-                settings.SMTP_PASSWORD
+        if not settings.RESEND_API_KEY:
+            raise RuntimeError(
+                "RESEND_API_KEY is not configured"
             )
 
-            print("Gmail authentication successful.")
+        import resend
 
-            print("Sending verification email...")
+        resend.api_key = settings.RESEND_API_KEY
 
-            server.sendmail(
-                sender_email,
-                recipient_email,
-                message.as_string()
-            )
+        print("Sending verification email through Resend...")
 
-            print("Verification email sent successfully.")
+        resend.Emails.send({
+            "from": sender_email,
+            "to": [recipient_email],
+            "subject": message["Subject"],
+            "text": text_content,
+            "html": html_content,
+        })
 
-
-    # ==========================================
-    # AUTHENTICATION ERROR
-    # ==========================================
-
-    except smtplib.SMTPAuthenticationError as exc:
-
-        print("")
-        print("SMTP AUTHENTICATION ERROR")
-        print(type(exc).__name__)
-        print(str(exc))
-        print("")
-
-        raise RuntimeError(
-            "Gmail authentication failed. "
-            "Check SMTP_USER and your Google App Password."
-        ) from exc
-
-
-    # ==========================================
-    # SMTP ERROR
-    # ==========================================
-
-    except smtplib.SMTPException as exc:
-
-        print("")
-        print("SMTP ERROR")
-        print(type(exc).__name__)
-        print(str(exc))
-        print("")
-
-        raise RuntimeError(
-            f"SMTP error: {type(exc).__name__}: {exc}"
-        ) from exc
-
-
-    # ==========================================
-    # OTHER ERRORS
-    # ==========================================
+        print("Verification email sent successfully through Resend.")
 
     except Exception as exc:
 
