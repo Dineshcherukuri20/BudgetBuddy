@@ -1,4 +1,6 @@
 from logging.config import fileConfig
+import os
+from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
@@ -25,6 +27,8 @@ from app.models.savings_goal import SavingsGoal
 # ==========================================
 
 config = context.config
+load_dotenv()
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -35,6 +39,7 @@ if config.config_file_name is not None:
 # ==========================================
 
 target_metadata = Base.metadata
+config.set_section_option(config.config_ini_section, 'sqlalchemy.url', DATABASE_URL.replace('%', '%%'))
 
 
 # ==========================================
